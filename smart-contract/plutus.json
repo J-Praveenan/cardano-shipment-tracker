@@ -1,0 +1,187 @@
+{
+  "preamble": {
+    "title": "cardano/smart-contract",
+    "description": "Aiken contracts for project 'cardano/smart-contract'",
+    "version": "0.0.0",
+    "plutusVersion": "v3",
+    "compiler": {
+      "name": "Aiken",
+      "version": "v1.1.21+42babe5"
+    },
+    "license": "Apache-2.0"
+  },
+  "validators": [
+    {
+      "title": "shipment_validator.shipmentValidator.spend",
+      "datum": {
+        "title": "datum",
+        "schema": {
+          "$ref": "#/definitions/types~1shipment_datum~1ShipmentDatum"
+        }
+      },
+      "redeemer": {
+        "title": "redeemer",
+        "schema": {
+          "$ref": "#/definitions/types~1shipment_redeemer~1ShipmentRedeemer"
+        }
+      },
+      "compiledCode": "59048a01010029800aba2aba1aba0aab9faab9eaab9dab9a488888896600264653001300800198041804800cdc3a400530080024888966002600460106ea800e3300130093754007370e90024dc3a40013008375400891111919912cc004c0140122b3001301037540170028b20228acc004c0240122b3001301037540170028b20228acc004c018012264646644b300130180038034590151bad3015001375c602a004602a00260206ea802e2b30013370e9003002456600260206ea802e005164045164038807100e201c159800980198069baa0018cc004c044c038dd5000c8966002600a601e6ea800626464660020026eb0c054c058c058c058c058c058c058c058c058c048dd5002112cc00400629422b30013371e6eb8c05800400e2946266004004602e00280890141bae30133010375400314a080724b30010018a60103d87a8000899ba548000cc044c0480052f5c0808246024602660260032232598009803000c4c8c966002602e0050048b2028375c602a00260226ea800e2b3001300a001899192cc004c05c00a0091640506eb8c054004c044dd5001c5900f201e300f375400523012301330133013301300198069baa00948888888c966002601600513300700e301930163754011159800980780144cc8966002601a602e6ea8006264b3001300f3018375400313233005001159800802456600266ebcc01cc068dd5006260103d8798000899baf3007301a375400298103d87a80008a50406114a080c0c070c064dd5000c590171803980c1baa301b301837540031640586600e01c6032602c6ea8020c018dd61802980b1baa00e8992cc004c03400e2653001375c6036003375a6036603800330083758600e60306ea804266012020603660306ea80292222598009808980d9baa0028992cc004c04cc070dd5000c4c8cc024004566002007159800992cc004c060006260126018603e6ea800a2b30013015001898049806180f9baa0028a50407480e8c074dd51805980f1baa010899b8f375c604260446044604460446044603c6ea800401a294101c452820383020301d375400316406c601660386ea8c07cc070dd500145901a0c05cdd500944cc8966002601c60306ea8006264b3001301030193754003132330060011598008024566002600a601060366ea8036266ebcc020c06cdd5000a6103d87c80008a50406514a080c8c074c068dd5000c590181804180c9baa301c3019375400316405c6601001e6034602e6ea8024c01cdd61803180b9baa00f40546ebd300103d87b8000405080a089660026018602c6ea800a2646464646464653001375a604200330210069bae30210059bad30210049810801cdd718108012444444b3001302800789980918138068998090028992cc004c0680062b30013025375400700f8b204c8acc004c0780062b30013025375400700f8b204c8acc004c06c0062b30013025375400700f8b204c8acc004cdc3a400c00315980098129baa003807c590264590232046408c8118c08cdd50014590250c084004c080004c07c004c078004c074004c070004c05cdd500145901522c8060c044014c040c04401116401c300800130033754011149a26cac8009",
+      "hash": "e4c657d9475ba82cb576f2f496c853f8629ac4c86964f51b5b9777c5"
+    },
+    {
+      "title": "shipment_validator.shipmentValidator.else",
+      "redeemer": {
+        "schema": {}
+      },
+      "compiledCode": "59048a01010029800aba2aba1aba0aab9faab9eaab9dab9a488888896600264653001300800198041804800cdc3a400530080024888966002600460106ea800e3300130093754007370e90024dc3a40013008375400891111919912cc004c0140122b3001301037540170028b20228acc004c0240122b3001301037540170028b20228acc004c018012264646644b300130180038034590151bad3015001375c602a004602a00260206ea802e2b30013370e9003002456600260206ea802e005164045164038807100e201c159800980198069baa0018cc004c044c038dd5000c8966002600a601e6ea800626464660020026eb0c054c058c058c058c058c058c058c058c058c048dd5002112cc00400629422b30013371e6eb8c05800400e2946266004004602e00280890141bae30133010375400314a080724b30010018a60103d87a8000899ba548000cc044c0480052f5c0808246024602660260032232598009803000c4c8c966002602e0050048b2028375c602a00260226ea800e2b3001300a001899192cc004c05c00a0091640506eb8c054004c044dd5001c5900f201e300f375400523012301330133013301300198069baa00948888888c966002601600513300700e301930163754011159800980780144cc8966002601a602e6ea8006264b3001300f3018375400313233005001159800802456600266ebcc01cc068dd5006260103d8798000899baf3007301a375400298103d87a80008a50406114a080c0c070c064dd5000c590171803980c1baa301b301837540031640586600e01c6032602c6ea8020c018dd61802980b1baa00e8992cc004c03400e2653001375c6036003375a6036603800330083758600e60306ea804266012020603660306ea80292222598009808980d9baa0028992cc004c04cc070dd5000c4c8cc024004566002007159800992cc004c060006260126018603e6ea800a2b30013015001898049806180f9baa0028a50407480e8c074dd51805980f1baa010899b8f375c604260446044604460446044603c6ea800401a294101c452820383020301d375400316406c601660386ea8c07cc070dd500145901a0c05cdd500944cc8966002601c60306ea8006264b3001301030193754003132330060011598008024566002600a601060366ea8036266ebcc020c06cdd5000a6103d87c80008a50406514a080c8c074c068dd5000c590181804180c9baa301c3019375400316405c6601001e6034602e6ea8024c01cdd61803180b9baa00f40546ebd300103d87b8000405080a089660026018602c6ea800a2646464646464653001375a604200330210069bae30210059bad30210049810801cdd718108012444444b3001302800789980918138068998090028992cc004c0680062b30013025375400700f8b204c8acc004c0780062b30013025375400700f8b204c8acc004c06c0062b30013025375400700f8b204c8acc004cdc3a400c00315980098129baa003807c590264590232046408c8118c08cdd50014590250c084004c080004c07c004c078004c074004c070004c05cdd500145901522c8060c044014c040c04401116401c300800130033754011149a26cac8009",
+      "hash": "e4c657d9475ba82cb576f2f496c853f8629ac4c86964f51b5b9777c5"
+    }
+  ],
+  "definitions": {
+    "ByteArray": {
+      "dataType": "bytes"
+    },
+    "Int": {
+      "dataType": "integer"
+    },
+    "aiken/crypto/ScriptHash": {
+      "title": "ScriptHash",
+      "dataType": "bytes"
+    },
+    "aiken/crypto/VerificationKeyHash": {
+      "title": "VerificationKeyHash",
+      "dataType": "bytes"
+    },
+    "cardano/address/Credential": {
+      "title": "Credential",
+      "description": "A general structure for representing an on-chain `Credential`.\n\n Credentials are always one of two kinds: a direct public/private key\n pair, or a script (native or Plutus).",
+      "anyOf": [
+        {
+          "title": "VerificationKey",
+          "dataType": "constructor",
+          "index": 0,
+          "fields": [
+            {
+              "$ref": "#/definitions/aiken~1crypto~1VerificationKeyHash"
+            }
+          ]
+        },
+        {
+          "title": "Script",
+          "dataType": "constructor",
+          "index": 1,
+          "fields": [
+            {
+              "$ref": "#/definitions/aiken~1crypto~1ScriptHash"
+            }
+          ]
+        }
+      ]
+    },
+    "types/shipment_datum/ShipmentDatum": {
+      "title": "ShipmentDatum",
+      "anyOf": [
+        {
+          "title": "ShipmentDatum",
+          "dataType": "constructor",
+          "index": 0,
+          "fields": [
+            {
+              "title": "sender",
+              "$ref": "#/definitions/cardano~1address~1Credential"
+            },
+            {
+              "title": "receiver",
+              "$ref": "#/definitions/cardano~1address~1Credential"
+            },
+            {
+              "title": "name",
+              "$ref": "#/definitions/ByteArray"
+            },
+            {
+              "title": "price",
+              "$ref": "#/definitions/Int"
+            },
+            {
+              "title": "status",
+              "$ref": "#/definitions/types~1shipment_datum~1ShipmentStatus"
+            },
+            {
+              "title": "location",
+              "$ref": "#/definitions/ByteArray"
+            },
+            {
+              "title": "updated_time",
+              "$ref": "#/definitions/Int"
+            }
+          ]
+        }
+      ]
+    },
+    "types/shipment_datum/ShipmentStatus": {
+      "title": "ShipmentStatus",
+      "anyOf": [
+        {
+          "title": "Created",
+          "dataType": "constructor",
+          "index": 0,
+          "fields": []
+        },
+        {
+          "title": "Started",
+          "dataType": "constructor",
+          "index": 1,
+          "fields": []
+        },
+        {
+          "title": "InTransit",
+          "dataType": "constructor",
+          "index": 2,
+          "fields": []
+        },
+        {
+          "title": "Delivered",
+          "dataType": "constructor",
+          "index": 3,
+          "fields": []
+        }
+      ]
+    },
+    "types/shipment_redeemer/ShipmentRedeemer": {
+      "title": "ShipmentRedeemer",
+      "anyOf": [
+        {
+          "title": "Create",
+          "dataType": "constructor",
+          "index": 0,
+          "fields": []
+        },
+        {
+          "title": "Start",
+          "dataType": "constructor",
+          "index": 1,
+          "fields": []
+        },
+        {
+          "title": "Update",
+          "dataType": "constructor",
+          "index": 2,
+          "fields": [
+            {
+              "$ref": "#/definitions/ByteArray"
+            },
+            {
+              "$ref": "#/definitions/Int"
+            }
+          ]
+        },
+        {
+          "title": "Deliver",
+          "dataType": "constructor",
+          "index": 3,
+          "fields": []
+        }
+      ]
+    }
+  }
+}
