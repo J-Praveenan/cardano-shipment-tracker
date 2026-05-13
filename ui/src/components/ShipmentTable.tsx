@@ -7,6 +7,7 @@ import { useWallet, useAddress } from "@meshsdk/react";
 import { provider, txBuilder } from "@/config/mesh";
 import { scriptAddress } from "@/config/contract";
 import ShipmentTableSkeleton from "./ShipmentTableSkeleton";
+import ShipmentDetailsModal from "./ShipmentDetailsModal";
 
 type ShipmentStatus = "Created" | "Started" | "InTransit" | "Delivered" | "Unknown";
 
@@ -28,6 +29,8 @@ export default function ShipmentTable() {
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [loading, setLoading] = useState(false);
   const [openCreateModal, setOpenCreateModal] = useState(false);
+  const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
+  const [openDetailsModal, setOpenDetailsModal] = useState(false);
 
   const { wallet, connected } = useWallet();
   const address = useAddress();
@@ -77,7 +80,7 @@ export default function ShipmentTable() {
 
         switch (type) {
             case "view":
-            return `${base} border-blue-200 bg-blue-100 text-slate-700 hover:border-slate-300 hover:bg-blue-200`;
+            return `${base} border-blue-200 bg-blue-100 text-slate-700 hover:border-blue-300 hover:bg-blue-200`;
 
             case "start":
             return `${base} border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100`;
@@ -313,13 +316,16 @@ export default function ShipmentTable() {
                     </span>
                   </td>
 
-                  <td className="px-6 py-5 text-sm text-gray-500 text-center">
+                  <td className="px-6 py-5 text-[13px] text-gray-500">
                     {shipment.updated}
                   </td>
 
                   <td className="px-6 py-5">
                     <div className="flex items-center justify-center gap-2">
-                        <button className={getButtonStyle("view")}>
+                        <button onClick={() => {
+                            setSelectedShipment(shipment);
+                            setOpenDetailsModal(true);
+                         }} className={getButtonStyle("view")}>
                             View
                         </button>
 
@@ -352,6 +358,14 @@ export default function ShipmentTable() {
         isOpen={openCreateModal}
         onClose={() => setOpenCreateModal(false)}
         onCreate={handleCreateShipment}
+        />
+    <ShipmentDetailsModal
+        isOpen={openDetailsModal}
+        shipment={selectedShipment}
+        onClose={() => {
+            setOpenDetailsModal(false);
+            setSelectedShipment(null);
+        }}
         />
     </section>
   );
