@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import CreateShipmentModal from "./CreateShipmentModal";
 
 type ShipmentStatus = "Created" | "Started" | "InTransit" | "Delivered";
 
@@ -60,6 +61,7 @@ const dummyShipments: Shipment[] = [
 
 export default function ShipmentTable() {
   const [shipments] = useState<Shipment[]>(dummyShipments);
+  const [openCreateModal, setOpenCreateModal] = useState(false);
 
   const getStatusStyle = (status: ShipmentStatus) => {
     switch (status) {
@@ -109,7 +111,7 @@ export default function ShipmentTable() {
           </p>
         </div>
 
-        <button className="rounded-xl bg-black px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-gray-800">
+        <button  onClick={() => setOpenCreateModal(true)} className="rounded-xl bg-black px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-gray-800">
           + Create Shipment
         </button>
       </div>
@@ -214,6 +216,14 @@ export default function ShipmentTable() {
           <p>Powered by Aiken Smart Contracts and Mesh SDK</p>
         </div>
       </div>
+
+      <CreateShipmentModal
+        isOpen={openCreateModal}
+        onClose={() => setOpenCreateModal(false)}
+        onCreate={(data) => {
+            console.log("Created Shipment:", data);
+        }}
+        />
     </section>
   );
 }
