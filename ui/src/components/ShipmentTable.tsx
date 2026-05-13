@@ -1,9 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import CreateShipmentModal from "./CreateShipmentModal";
+import { conStr, byteString, integer, stringToHex, resolvePaymentKeyHash,deserializeDatum, hexToString } from "@meshsdk/core";
+import { useWallet, useAddress } from "@meshsdk/react";
+import { provider, txBuilder } from "@/config/mesh";
+import { scriptAddress } from "@/config/contract";
+import ShipmentTableSkeleton from "./ShipmentTableSkeleton";
 
-type ShipmentStatus = "Created" | "Started" | "InTransit" | "Delivered";
+type ShipmentStatus = "Created" | "Started" | "InTransit" | "Delivered" | "Unknown";
 
 type Shipment = {
   id: number;
@@ -14,88 +19,203 @@ type Shipment = {
   location: string;
   status: ShipmentStatus;
   updated: string;
+  txHash: string;
+  outputIndex: number;
 };
 
-const dummyShipments: Shipment[] = [
-  {
-    id: 1,
-    sender: "addr_test...8cqvc",
-    receiver: "addr_test...05f0",
-    product: "Laptop",
-    price: 1200,
-    location: "Colombo",
-    status: "Created",
-    updated: "2026-05-13 09:30 AM",
-  },
-  {
-    id: 2,
-    sender: "addr_test...c7f0",
-    receiver: "addr_test...0wle3",
-    product: "Mobile Phone",
-    price: 850,
-    location: "Kandy",
-    status: "Started",
-    updated: "2026-05-13 10:15 AM",
-  },
-  {
-    id: 3,
-    sender: "addr_test...9x2a",
-    receiver: "addr_test...a7k9",
-    product: "Smart Watch",
-    price: 250,
-    location: "Galle",
-    status: "InTransit",
-    updated: "2026-05-13 11:45 AM",
-  },
-  {
-    id: 4,
-    sender: "addr_test...4qns",
-    receiver: "addr_test...77lp",
-    product: "Headphones",
-    price: 180,
-    location: "Jaffna",
-    status: "Delivered",
-    updated: "2026-05-13 12:10 PM",
-  },
-];
 
 export default function ShipmentTable() {
-  const [shipments] = useState<Shipment[]>(dummyShipments);
+  const [shipments, setShipments] = useState<Shipment[]>([]);
+  const [loading, setLoading] = useState(false);
   const [openCreateModal, setOpenCreateModal] = useState(false);
 
-  const getStatusStyle = (status: ShipmentStatus) => {
-    switch (status) {
-      case "Created":
-        return "bg-slate-100 text-slate-700 border-slate-200";
-      case "Started":
-        return "bg-blue-100 text-blue-700 border-blue-200";
-      case "InTransit":
-        return "bg-yellow-100 text-yellow-700 border-yellow-200";
-      case "Delivered":
-        return "bg-green-100 text-green-700 border-green-200";
-      default:
-        return "bg-gray-100 text-gray-700 border-gray-200";
-    }
-  };
+  const { wallet, connected } = useWallet();
+  const address = useAddress();
 
-  const getButtonStyle = (type: "view" | "start" | "update" | "deliver") => {
-    const base =
-        "rounded-lg border px-3.5 py-2 text-xs font-semibold transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50";
+    const getStatusName = (status: any) => {
+        const statusIndex =
+            status?.constructor !== undefined
+            ? Number(status.constructor)
+            : Number(status?.int);
 
-    switch (type) {
-        case "view":
-        return `${base} border-blue-200 bg-blue-100 text-slate-700 hover:border-slate-300 hover:bg-blue-200`;
+        if (statusIndex === 0) return "Created";
+        if (statusIndex === 1) return "Started";
+        if (statusIndex === 2) return "InTransit";
+        if (statusIndex === 3) return "Delivered";
 
-        case "start":
-        return `${base} border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100`;
-
-        case "update":
-        return `${base} border-amber-200 bg-amber-50 text-amber-700 hover:border-amber-300 hover:bg-amber-100`;
-
-        case "deliver":
-        return `${base} border-rose-200 bg-rose-50 text-rose-700 hover:border-rose-300 hover:bg-rose-100`;
-    }
+        return "Unknown";
     };
+
+    const shortAddress = (hash: string) => {
+        if (!hash) return "----";
+        return `${hash.slice(0, 6)}...${hash.slice(-4)}`;
+    };
+
+    const formatTime = (timestamp: number) => {
+        if (!timestamp) return "----";
+        return new Date(timestamp * 1000).toLocaleString();
+    };
+
+    const getStatusStyle = (status: ShipmentStatus) => {
+        switch (status) {
+        case "Created":
+            return "bg-slate-100 text-slate-700 border-slate-200";
+        case "Started":
+            return "bg-blue-100 text-blue-700 border-blue-200";
+        case "InTransit":
+            return "bg-yellow-100 text-yellow-700 border-yellow-200";
+        case "Delivered":
+            return "bg-green-100 text-green-700 border-green-200";
+        default:
+            return "bg-gray-100 text-gray-700 border-gray-200";
+        }
+    };
+
+    const getButtonStyle = (type: "view" | "start" | "update" | "deliver") => {
+        const base =
+            "rounded-lg border px-3.5 py-2 text-xs font-semibold transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50";
+
+        switch (type) {
+            case "view":
+            return `${base} border-blue-200 bg-blue-100 text-slate-700 hover:border-slate-300 hover:bg-blue-200`;
+
+            case "start":
+            return `${base} border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100`;
+
+            case "update":
+            return `${base} border-amber-200 bg-amber-50 text-amber-700 hover:border-amber-300 hover:bg-amber-100`;
+
+            case "deliver":
+            return `${base} border-rose-200 bg-rose-50 text-rose-700 hover:border-rose-300 hover:bg-rose-100`;
+        }
+    };
+
+    const fetchShipments = async () => {
+        try {
+            setLoading(true);
+
+            const utxos = await provider.fetchAddressUTxOs(scriptAddress);
+
+            const shipmentList: Shipment[] = [];
+
+            for (const utxo of utxos) {
+            const datum = utxo.output.plutusData;
+
+            if (!datum) continue;
+
+            try {
+                const decoded: any = deserializeDatum(datum);
+
+                const sender = decoded.fields[0];
+                const receiver = decoded.fields[1];
+                const name = decoded.fields[2];
+                const price = decoded.fields[3];
+                const status = decoded.fields[4];
+                const location = decoded.fields[5];
+                const updated = decoded.fields[6];
+
+                const senderPkh = sender.fields[0].bytes;
+                const receiverPkh = receiver.fields[0].bytes;
+
+                shipmentList.push({
+                id: shipmentList.length + 1,
+
+                sender: senderPkh,
+                receiver: receiverPkh,
+
+                product: hexToString(name.bytes),
+                price: Number(price.int),
+
+                location: hexToString(location.bytes),
+
+                status: getStatusName(status),
+
+                updated: formatTime(Number(updated.int)),
+
+                txHash: utxo.input.txHash,
+                outputIndex: utxo.input.outputIndex,
+                });
+            } catch (error) {
+                console.error("Datum decode error:", error);
+            }
+            }
+
+            setShipments(shipmentList);
+        } catch (error) {
+            console.error("Fetch shipment error:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleCreateShipment = async (data: {
+        name: string;
+        price: string;
+        receiver: string;
+        location: string;
+    }) => {
+        try {
+            if (!connected || !wallet || !address) {
+                alert("Please connect wallet first");
+                return;
+            }
+
+            if (!data.name || !data.price || !data.receiver || !data.location) {
+                alert("Please fill all fields");
+                return;
+            }
+
+            const utxos = await wallet.getUtxos();
+            const changeAddress = await wallet.getChangeAddress();
+
+            const senderPkh = resolvePaymentKeyHash(address);
+            const receiverPkh = resolvePaymentKeyHash(data.receiver);
+
+            const nameHex = stringToHex(data.name);
+            const locationHex = stringToHex(data.location);
+
+            const price = Math.floor(Number(data.price));
+            const updatedTime = Math.floor(Date.now() / 1000);
+
+            const datum = conStr(0, [
+                conStr(0, [byteString(senderPkh)]), // sender credential
+                conStr(0, [byteString(receiverPkh)]), // receiver credential
+                byteString(nameHex), // product name
+                integer(price), // price
+                conStr(0, []), // Created status
+                byteString(locationHex), // location
+                integer(updatedTime), // updated time
+            ]);
+
+            const unsignedTx = await txBuilder
+                .txOut(scriptAddress, [
+                    {
+                    unit: "lovelace",
+                    quantity: "3000000",
+                    },
+                ])
+                .txOutInlineDatumValue(datum, "JSON")
+                .changeAddress(changeAddress)
+                .selectUtxosFrom(utxos)
+                .complete();
+
+            const signedTx = await wallet.signTx(unsignedTx);
+            const txHash = await wallet.submitTx(signedTx);
+
+            alert("Shipment created successfully: " + txHash);
+
+            // setTimeout(() => {
+            // fetchShipments();
+            // }, 15000);
+        } catch (error) {
+            console.error("Create shipment error:", error);
+            alert("Create shipment failed");
+        }
+    };
+
+    useEffect(() => {
+        fetchShipments();
+    }, []);
 
   return (
     <section className="mx-auto w-full max-w-7xl px-4 py-10">
@@ -127,52 +247,63 @@ export default function ShipmentTable() {
           <table className="w-full min-w-[1100px] text-left">
             <thead>
               <tr className="bg-gray-50 text-xs uppercase tracking-wider text-gray-500">
-                <th className="px-6 py-4">Sender</th>
-                <th className="px-6 py-4">Receiver</th>
-                <th className="px-6 py-4">Product</th>
-                <th className="px-6 py-4">Price</th>
-                <th className="px-6 py-4">Location</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4">Updated</th>
+                <th className="px-6 py-4 text-center">Sender</th>
+                <th className="px-6 py-4 text-center">Receiver</th>
+                <th className="px-6 py-4 text-center">Product</th>
+                <th className="px-6 py-4 text-center">Price</th>
+                <th className="px-6 py-4 text-center">Location</th>
+                <th className="px-6 py-4 text-center">Status</th>
+                <th className="px-6 py-4 text-center">Updated</th>
                 <th className="px-6 py-4 text-center">Actions</th>
               </tr>
             </thead>
 
             <tbody className="divide-y divide-gray-100">
+                {loading && <ShipmentTableSkeleton />}
+                {shipments.length === 0 && !loading && (
+                    <tr>
+                        <td
+                        colSpan={8}
+                        className="px-6 py-10 text-center text-sm text-gray-500"
+                        >
+                        No shipments found on-chain.
+                        </td>
+                    </tr>
+                )}
               {shipments.map((shipment) => (
                 <tr
                   key={shipment.id}
                   className="transition hover:bg-blue-50/40"
                 >
-                  <td className="px-6 py-5">
+                  <td className="px-6 py-5 text-center">
                     <span className="rounded-lg bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
-                      {shipment.sender}
+                      {shortAddress(shipment.sender)}
                     </span>
                   </td>
 
-                  <td className="px-6 py-5">
+                  <td className="px-6 py-5 text-center">
                     <span className="rounded-lg bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
-                      {shipment.receiver}
+                      {shortAddress(shipment.receiver)}
                     </span>
                   </td>
 
-                  <td className="px-6 py-5">
+                  <td className="px-6 py-5 text-center">
                     <div className="font-semibold text-gray-900">
                       {shipment.product}
                     </div>
                   </td>
 
-                  <td className="px-6 py-5 font-semibold text-gray-800">
+                  <td className="px-6 py-5 font-semibold text-gray-800 text-center">
                     ${shipment.price.toLocaleString()}
                   </td>
 
-                  <td className="px-6 py-5">
+                  <td className="px-6 py-5 text-center">
                     <span className="text-sm font-medium text-gray-700">
                       {shipment.location}
                     </span>
                   </td>
 
-                  <td className="px-6 py-5">
+                  <td className="px-6 py-5 text-center">
                     <span
                       className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${getStatusStyle(
                         shipment.status
@@ -182,7 +313,7 @@ export default function ShipmentTable() {
                     </span>
                   </td>
 
-                  <td className="px-6 py-5 text-sm text-gray-500">
+                  <td className="px-6 py-5 text-sm text-gray-500 text-center">
                     {shipment.updated}
                   </td>
 
@@ -220,9 +351,7 @@ export default function ShipmentTable() {
       <CreateShipmentModal
         isOpen={openCreateModal}
         onClose={() => setOpenCreateModal(false)}
-        onCreate={(data) => {
-            console.log("Created Shipment:", data);
-        }}
+        onCreate={handleCreateShipment}
         />
     </section>
   );
