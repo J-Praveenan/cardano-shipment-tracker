@@ -10,6 +10,7 @@ import ShipmentTableSkeleton from "./ShipmentTableSkeleton";
 import ShipmentDetailsModal from "./ShipmentDetailsModal";
 import ConfirmationModal from "./ConfirmationModal";
 import UpdateShipmentModal from "./UpdateShipmentModal";
+import toast from "react-hot-toast";
 
 type ShipmentStatus = "Created" | "Started" | "InTransit" | "Delivered" | "Unknown";
 
@@ -176,12 +177,12 @@ export default function ShipmentTable() {
     }) => {
         try {
             if (!connected || !wallet || !address) {
-                alert("Please connect wallet first");
+                toast.error("Connect wallet first");
                 return;
             }
 
             if (!data.name || !data.price || !data.receiver || !data.location) {
-                alert("Please fill all fields");
+                toast.error("Please fill all fields");
                 return;
             }
 
@@ -222,21 +223,21 @@ export default function ShipmentTable() {
             const signedTx = await wallet.signTx(unsignedTx);
             const txHash = await wallet.submitTx(signedTx);
 
-            alert("Shipment created successfully: " + txHash);
+            toast.success("Shipment created successfully");
 
-            // setTimeout(() => {
-            // fetchShipments();
-            // }, 15000);
+            setTimeout(() => {
+            fetchShipments();
+            }, 15000);
         } catch (error) {
             console.error("Create shipment error:", error);
-            alert("Create shipment failed");
+            toast.error("Create shipment failed");
         }
     };
 
     const handleStartShipment = async (shipment: Shipment) => {
       try {
         if (!connected || !wallet || !address) {
-          alert("Connect wallet first");
+          toast.error("Connect wallet first");
           return;
         }
 
@@ -251,14 +252,14 @@ export default function ShipmentTable() {
         );
 
         if (!targetUtxo) {
-          alert("Shipment UTXO not found");
+          toast.error("Shipment UTXO not found");
           return;
         }
 
         const datum = targetUtxo.output.plutusData;
 
         if (!datum) {
-          alert("Datum not found");
+          toast.error("Datum not found");
           return;
         }
 
@@ -275,7 +276,7 @@ export default function ShipmentTable() {
         const senderPkh = sender.fields[0].bytes;
 
         if (currentWalletPkh !== senderPkh) {
-          alert("Only sender can start shipment");
+          toast.error("Only sender can start shipment");
           return;
         }
 
@@ -301,7 +302,7 @@ export default function ShipmentTable() {
           await wallet.getChangeAddress();
 
         if (!collateral || collateral.length === 0) {
-          alert("No collateral found");
+          toast.error("No collateral found");
           return;
         }
 
@@ -341,7 +342,7 @@ export default function ShipmentTable() {
           signedTx
         );
 
-        alert("Shipment Started: " + txHash);
+        toast.success("Shipment Started successfully.");
 
         setTimeout(async () => {
           await fetchShipments();
@@ -349,7 +350,7 @@ export default function ShipmentTable() {
 
       } catch (error) {
         console.error("Start shipment error:", error);
-        alert("Start shipment failed");
+        toast.error("Start shipment failed");
       }
     };
 
@@ -359,12 +360,12 @@ export default function ShipmentTable() {
     ) => {
       try {
         if (!connected || !wallet || !address) {
-          alert("Connect wallet first");
+          toast.error("Connect wallet first");
           return;
         }
 
         if (!newLocation.trim()) {
-          alert("Enter new location");
+          toast.error("Enter new location");
           return;
         }
 
@@ -377,14 +378,14 @@ export default function ShipmentTable() {
         );
 
         if (!targetUtxo) {
-          alert("Shipment UTXO not found");
+          toast.error("Shipment UTXO not found");
           return;
         }
 
         const datum = targetUtxo.output.plutusData;
 
         if (!datum) {
-          alert("Datum not found");
+          toast.error("Datum not found");
           return;
         }
 
@@ -399,7 +400,7 @@ export default function ShipmentTable() {
         const currentWalletPkh = resolvePaymentKeyHash(address);
 
         if (currentWalletPkh !== senderPkh) {
-          alert("Only sender can update shipment");
+          toast.error("Only sender can update shipment");
           return;
         }
 
@@ -426,7 +427,7 @@ export default function ShipmentTable() {
         const changeAddress = await wallet.getChangeAddress();
 
         if (!collateral || collateral.length === 0) {
-          alert("No collateral found");
+          toast.error("No collateral found");
           return;
         }
 
@@ -455,14 +456,14 @@ export default function ShipmentTable() {
         const signedTx = await wallet.signTx(unsignedTx, true);
         const txHash = await wallet.submitTx(signedTx);
 
-        alert("Shipment Updated: " + txHash);
+        toast.success("Shipment Updated successfully.");
 
         setTimeout(async () => {
           await fetchShipments();
         }, 15000);
       } catch (error) {
         console.error("Update shipment error:", error);
-        alert("Update shipment failed");
+        toast.error("Update shipment failed");
       }
     };
 
@@ -473,7 +474,7 @@ export default function ShipmentTable() {
       try {
 
         if (!connected || !wallet || !address) {
-          alert("Connect wallet first");
+          toast.error("Connect wallet first");
           return;
         }
 
@@ -486,14 +487,14 @@ export default function ShipmentTable() {
         );
 
         if (!targetUtxo) {
-          alert("Shipment UTXO not found");
+          toast.error("Shipment UTXO not found");
           return;
         }
 
         const datum = targetUtxo.output.plutusData;
 
         if (!datum) {
-          alert("Datum not found");
+          toast.error("Datum not found");
           return;
         }
 
@@ -510,7 +511,7 @@ export default function ShipmentTable() {
         const currentWalletPkh = resolvePaymentKeyHash(address);
 
         if (currentWalletPkh !== senderPkh) {
-          alert("Only sender can deliver shipment");
+          toast.error("Only sender can deliver shipment");
           return;
         }
 
@@ -535,7 +536,7 @@ export default function ShipmentTable() {
         const changeAddress = await wallet.getChangeAddress();
 
         if (!collateral || collateral.length === 0) {
-          alert("Collateral not found");
+          toast.error("Collateral not found");
           return;
         }
 
@@ -564,8 +565,7 @@ export default function ShipmentTable() {
         const signedTx = await wallet.signTx(unsignedTx, true);
 
         const txHash = await wallet.submitTx(signedTx);
-
-        alert("Shipment Delivered: " + txHash);
+        toast.success("Shipment Delivered successfully.");
 
         setTimeout(async () => {
           await fetchShipments();
@@ -573,7 +573,7 @@ export default function ShipmentTable() {
 
       } catch (error) {
         console.error("Deliver shipment error:", error);
-        alert("Deliver shipment failed");
+        toast.error("Deliver shipment failed");
       }
     };
 
