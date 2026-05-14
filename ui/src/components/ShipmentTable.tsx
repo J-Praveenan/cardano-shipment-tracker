@@ -35,6 +35,7 @@ export default function ShipmentTable() {
   const [openDetailsModal, setOpenDetailsModal] = useState(false);
   const [openStartModal, setOpenStartModal] = useState(false);
   const [openUpdateModal, setOpenUpdateModal] = useState(false);
+  const [openDeliverModal, setOpenDeliverModal] = useState(false);
 
   const { wallet, connected } = useWallet();
   const address = useAddress();
@@ -465,6 +466,117 @@ export default function ShipmentTable() {
       }
     };
 
+    const handleDeliverShipment = async (
+      shipment: Shipment
+    ) => {
+
+      try {
+
+        if (!connected || !wallet || !address) {
+          alert("Connect wallet first");
+          return;
+        }
+
+        const scriptUtxos = await provider.fetchAddressUTxOs(scriptAddress);
+
+        const targetUtxo = scriptUtxos.find(
+          (utxo: any) =>
+            utxo.input.txHash === shipment.txHash &&
+            utxo.input.outputIndex === shipment.outputIndex
+        );
+
+        if (!targetUtxo) {
+          alert("Shipment UTXO not found");
+          return;
+        }
+
+        const datum = targetUtxo.output.plutusData;
+
+        if (!datum) {
+          alert("Datum not found");
+          return;
+        }
+
+        const decoded: any = deserializeDatum(datum);
+
+        const sender = decoded.fields[0];
+        const receiver = decoded.fields[1];
+        const name = decoded.fields[2];
+        const price = decoded.fields[3];
+        const location = decoded.fields[5];
+
+        const senderPkh = sender.fields[0].bytes;
+
+        const currentWalletPkh = resolvePaymentKeyHash(address);
+
+        if (currentWalletPkh !== senderPkh) {
+          alert("Only sender can deliver shipment");
+          return;
+        }
+
+        const updatedTime = Math.floor(Date.now() / 1000);
+
+        const newDatum = conStr(0, [
+          sender,
+          receiver,
+          name,
+          price,
+          conStr(3, []), // Delivered
+          location,
+          integer(updatedTime),
+        ]);
+
+        const redeemer = conStr(3, []); // Deliver
+
+        const walletUtxos = await wallet.getUtxos();
+
+        const collateral = await wallet.getCollateral();
+
+        const changeAddress = await wallet.getChangeAddress();
+
+        if (!collateral || collateral.length === 0) {
+          alert("Collateral not found");
+          return;
+        }
+
+        const unsignedTx = await txBuilder
+          .spendingPlutusScriptV3()
+          .txIn(
+            targetUtxo.input.txHash,
+            targetUtxo.input.outputIndex
+          )
+          .txInInlineDatumPresent()
+          .txInRedeemerValue(redeemer, "JSON")
+          .txInScript(scriptCbor)
+          .requiredSignerHash(senderPkh)
+          .txInCollateral(
+            collateral[0].input.txHash,
+            collateral[0].input.outputIndex,
+            collateral[0].output.amount,
+            collateral[0].output.address
+          )
+          .txOut(scriptAddress, targetUtxo.output.amount)
+          .txOutInlineDatumValue(newDatum, "JSON")
+          .changeAddress(changeAddress)
+          .selectUtxosFrom(walletUtxos)
+          .complete();
+
+        const signedTx = await wallet.signTx(unsignedTx, true);
+
+        const txHash = await wallet.submitTx(signedTx);
+
+        alert("Shipment Delivered: " + txHash);
+
+        setTimeout(async () => {
+          await fetchShipments();
+        }, 15000);
+
+      } catch (error) {
+        console.error("Deliver shipment error:", error);
+        alert("Deliver shipment failed");
+      }
+    };
+
     useEffect(() => {
         fetchShipments();
     }, []);
@@ -595,7 +707,10 @@ export default function ShipmentTable() {
                             Update
                         </button>
 
-                        <button className={getButtonStyle("deliver")}  disabled={isDeliverDisabled(shipment.status)}>
+                        <button onClick={() => {
+                          setSelectedShipment(shipment);
+                          setOpenDeliverModal(true);
+                        }} className={getButtonStyle("deliver")}  disabled={isDeliverDisabled(shipment.status)}>
                             Deliver
                         </button>
                         </div>
@@ -664,6 +779,27 @@ export default function ShipmentTable() {
               selectedShipment,
               location
             );
+
+            setSelectedShipment(null);
+          }}
+        />
+
+        <ConfirmationModal
+          isOpen={openDeliverModal}
+          title="Deliver Shipment"
+          message={`Are you sure you want to mark "${selectedShipment?.product}" as delivered?`}
+          confirmText="Deliver Shipment"
+          cancelText="Cancel"
+          onClose={() => {
+            setOpenDeliverModal(false);
+            setSelectedShipment(null);
+          }}
+          onConfirm={async () => {
+            if (!selectedShipment) return;
+
+            setOpenDeliverModal(false);
+
+            await handleDeliverShipment(selectedShipment);
 
             setSelectedShipment(null);
           }}
