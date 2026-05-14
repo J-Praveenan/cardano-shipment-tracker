@@ -37,6 +37,7 @@ export default function ShipmentTable() {
   const [openStartModal, setOpenStartModal] = useState(false);
   const [openUpdateModal, setOpenUpdateModal] = useState(false);
   const [openDeliverModal, setOpenDeliverModal] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const { wallet, connected } = useWallet();
   const address = useAddress();
@@ -577,6 +578,18 @@ export default function ShipmentTable() {
       }
     };
 
+    const filteredShipments = shipments.filter((shipment) => {
+      const search = searchTerm.toLowerCase();
+
+      return (
+        shipment.product.toLowerCase().includes(search) ||
+        shipment.location.toLowerCase().includes(search) ||
+        shipment.status.toLowerCase().includes(search) ||
+        shipment.sender.toLowerCase().includes(search) ||
+        shipment.receiver.toLowerCase().includes(search)
+      );
+    });
+
     useEffect(() => {
         fetchShipments();
     }, []);
@@ -593,6 +606,26 @@ export default function ShipmentTable() {
             Track shipment status, location, sender, receiver, and delivery
             progress.
           </p>
+        </div>
+
+        <div className="mt-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="w-full lg:w-[320px]">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="⌕ search by product, location, status"
+              className="w-full rounded-xl border border-gray-400 bg-white px-4 py-3 text-sm text-gray-700 shadow-sm outline-none transition focus:border-black focus:ring-2 focus:ring-black/10"
+            />
+          </div>
+
+          <div className="flex items-center justify-between gap-4">
+
+            <p className="text-sm text-gray-500 whitespace-nowrap">
+              Showing {filteredShipments.length} of {shipments.length} shipments
+            </p>
+
+          </div>
         </div>
 
         <button  onClick={() => setOpenCreateModal(true)} className="rounded-xl bg-black px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-gray-800">
@@ -624,7 +657,7 @@ export default function ShipmentTable() {
 
             <tbody className="divide-y divide-gray-100">
                 {loading && <ShipmentTableSkeleton />}
-                {shipments.length === 0 && !loading && (
+                {filteredShipments.length === 0 && !loading && (
                     <tr>
                         <td
                         colSpan={8}
@@ -634,7 +667,7 @@ export default function ShipmentTable() {
                         </td>
                     </tr>
                 )}
-              {shipments.map((shipment) => (
+              {filteredShipments.map((shipment) => (
                 <tr
                   key={shipment.id}
                   className="transition hover:bg-blue-50/40"
