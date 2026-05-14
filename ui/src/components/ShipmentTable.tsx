@@ -9,6 +9,7 @@ import { scriptAddress,scriptCbor } from "@/config/contract";
 import ShipmentTableSkeleton from "./ShipmentTableSkeleton";
 import ShipmentDetailsModal from "./ShipmentDetailsModal";
 import ConfirmationModal from "./ConfirmationModal";
+import UpdateShipmentModal from "./UpdateShipmentModal";
 
 type ShipmentStatus = "Created" | "Started" | "InTransit" | "Delivered" | "Unknown";
 
@@ -33,7 +34,7 @@ export default function ShipmentTable() {
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
   const [openDetailsModal, setOpenDetailsModal] = useState(false);
   const [openStartModal, setOpenStartModal] = useState(false);
-
+  const [openUpdateModal, setOpenUpdateModal] = useState(false);
 
   const { wallet, connected } = useWallet();
   const address = useAddress();
@@ -351,6 +352,119 @@ export default function ShipmentTable() {
       }
     };
 
+    const handleUpdateShipment = async (
+      shipment: Shipment,
+      newLocation: string
+    ) => {
+      try {
+        if (!connected || !wallet || !address) {
+          alert("Connect wallet first");
+          return;
+        }
+
+        if (!newLocation.trim()) {
+          alert("Enter new location");
+          return;
+        }
+
+        const scriptUtxos = await provider.fetchAddressUTxOs(scriptAddress);
+
+        const targetUtxo = scriptUtxos.find(
+          (utxo: any) =>
+            utxo.input.txHash === shipment.txHash &&
+            utxo.input.outputIndex === shipment.outputIndex
+        );
+
+        if (!targetUtxo) {
+          alert("Shipment UTXO not found");
+          return;
+        }
+
+        const datum = targetUtxo.output.plutusData;
+
+        if (!datum) {
+          alert("Datum not found");
+          return;
+        }
+
+        const decoded: any = deserializeDatum(datum);
+
+        const sender = decoded.fields[0];
+        const receiver = decoded.fields[1];
+        const name = decoded.fields[2];
+        const price = decoded.fields[3];
+
+        const senderPkh = sender.fields[0].bytes;
+        const currentWalletPkh = resolvePaymentKeyHash(address);
+
+        if (currentWalletPkh !== senderPkh) {
+          alert("Only sender can update shipment");
+          return;
+        }
+
+        const newLocationHex = stringToHex(newLocation);
+        const newTime = Math.floor(Date.now() / 1000);
+
+        const newDatum = conStr(0, [
+          sender,
+          receiver,
+          name,
+          price,
+          conStr(2, []), // InTransit
+          byteString(newLocationHex),
+          integer(newTime),
+        ]);
+
+        const redeemer = conStr(2, [
+          byteString(newLocationHex),
+          integer(newTime),
+        ]);
+
+        const walletUtxos = await wallet.getUtxos();
+        const collateral = await wallet.getCollateral();
+        const changeAddress = await wallet.getChangeAddress();
+
+        if (!collateral || collateral.length === 0) {
+          alert("No collateral found");
+          return;
+        }
+
+        const unsignedTx = await txBuilder
+          .spendingPlutusScriptV3()
+          .txIn(
+            targetUtxo.input.txHash,
+            targetUtxo.input.outputIndex
+          )
+          .txInInlineDatumPresent()
+          .txInRedeemerValue(redeemer, "JSON")
+          .txInScript(scriptCbor)
+          .requiredSignerHash(senderPkh)
+          .txInCollateral(
+            collateral[0].input.txHash,
+            collateral[0].input.outputIndex,
+            collateral[0].output.amount,
+            collateral[0].output.address
+          )
+          .txOut(scriptAddress, targetUtxo.output.amount)
+          .txOutInlineDatumValue(newDatum, "JSON")
+          .changeAddress(changeAddress)
+          .selectUtxosFrom(walletUtxos)
+          .complete();
+
+        const signedTx = await wallet.signTx(unsignedTx, true);
+        const txHash = await wallet.submitTx(signedTx);
+
+        alert("Shipment Updated: " + txHash);
+
+        setTimeout(async () => {
+          await fetchShipments();
+        }, 15000);
+      } catch (error) {
+        console.error("Update shipment error:", error);
+        alert("Update shipment failed");
+      }
+    };
+
     useEffect(() => {
         fetchShipments();
     }, []);
@@ -473,7 +587,11 @@ export default function ShipmentTable() {
                             Start
                         </button>
 
-                        <button className={getButtonStyle("update")}  disabled={isUpdateDisabled(shipment.status)}>
+                        <button onClick={() => {
+                            setSelectedShipment(shipment);
+                            setOpenUpdateModal(true);
+                          }} className={getButtonStyle("update")}  
+                          disabled={isUpdateDisabled(shipment.status)}>
                             Update
                         </button>
 
@@ -526,6 +644,27 @@ export default function ShipmentTable() {
             }
 
             setOpenStartModal(false);
+            setSelectedShipment(null);
+          }}
+        />
+
+        <UpdateShipmentModal
+          isOpen={openUpdateModal}
+          shipment={selectedShipment}
+          onClose={() => {
+            setOpenUpdateModal(false);
+            setSelectedShipment(null);
+          }}
+          onConfirm={async (location) => {
+            if (!selectedShipment) return;
+
+            setOpenUpdateModal(false);
+
+            await handleUpdateShipment(
+              selectedShipment,
+              location
+            );
+
             setSelectedShipment(null);
           }}
         />
