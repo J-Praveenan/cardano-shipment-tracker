@@ -5,9 +5,10 @@ import CreateShipmentModal from "./CreateShipmentModal";
 import { conStr, byteString, integer, stringToHex, resolvePaymentKeyHash,deserializeDatum, hexToString } from "@meshsdk/core";
 import { useWallet, useAddress } from "@meshsdk/react";
 import { provider, txBuilder } from "@/config/mesh";
-import { scriptAddress } from "@/config/contract";
+import { scriptAddress,scriptCbor } from "@/config/contract";
 import ShipmentTableSkeleton from "./ShipmentTableSkeleton";
 import ShipmentDetailsModal from "./ShipmentDetailsModal";
+import ConfirmationModal from "./ConfirmationModal";
 
 type ShipmentStatus = "Created" | "Started" | "InTransit" | "Delivered" | "Unknown";
 
@@ -31,6 +32,8 @@ export default function ShipmentTable() {
   const [openCreateModal, setOpenCreateModal] = useState(false);
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
   const [openDetailsModal, setOpenDetailsModal] = useState(false);
+  const [openStartModal, setOpenStartModal] = useState(false);
+
 
   const { wallet, connected } = useWallet();
   const address = useAddress();
@@ -91,6 +94,18 @@ export default function ShipmentTable() {
             case "deliver":
             return `${base} border-rose-200 bg-rose-50 text-rose-700 hover:border-rose-300 hover:bg-rose-100`;
         }
+    };
+
+    const isStartDisabled = (status: ShipmentStatus) => {
+      return status !== "Created";
+    };
+
+    const isUpdateDisabled = (status: ShipmentStatus) => {
+      return status !== "Started" && status !== "InTransit";
+    };
+
+    const isDeliverDisabled = (status: ShipmentStatus) => {
+      return status !== "InTransit";
     };
 
     const fetchShipments = async () => {
@@ -216,6 +231,126 @@ export default function ShipmentTable() {
         }
     };
 
+    const handleStartShipment = async (shipment: Shipment) => {
+      try {
+        if (!connected || !wallet || !address) {
+          alert("Connect wallet first");
+          return;
+        }
+
+        const scriptUtxos = await provider.fetchAddressUTxOs(
+          scriptAddress
+        );
+
+        const targetUtxo = scriptUtxos.find(
+          (utxo: any) =>
+            utxo.input.txHash === shipment.txHash &&
+            utxo.input.outputIndex === shipment.outputIndex
+        );
+
+        if (!targetUtxo) {
+          alert("Shipment UTXO not found");
+          return;
+        }
+
+        const datum = targetUtxo.output.plutusData;
+
+        if (!datum) {
+          alert("Datum not found");
+          return;
+        }
+
+        const decoded: any = deserializeDatum(datum);
+
+        const sender = decoded.fields[0];
+        const receiver = decoded.fields[1];
+        const name = decoded.fields[2];
+        const price = decoded.fields[3];
+        const location = decoded.fields[5];
+
+        const currentWalletPkh = resolvePaymentKeyHash(address);
+
+        const senderPkh = sender.fields[0].bytes;
+
+        if (currentWalletPkh !== senderPkh) {
+          alert("Only sender can start shipment");
+          return;
+        }
+
+        // New datum -> Started
+        const newDatum = conStr(0, [
+          sender,
+          receiver,
+          name,
+          price,
+          conStr(1, []), // Started
+          location,
+          integer(Math.floor(Date.now() / 1000)),
+        ]);
+
+        // Redeemer -> Start
+        const redeemer = conStr(1, []);
+
+        const walletUtxos = await wallet.getUtxos();
+
+        const collateral = await wallet.getCollateral();
+
+        const changeAddress =
+          await wallet.getChangeAddress();
+
+        if (!collateral || collateral.length === 0) {
+          alert("No collateral found");
+          return;
+        }
+
+        const unsignedTx = await txBuilder
+          .spendingPlutusScriptV3()
+          .txIn(
+            targetUtxo.input.txHash,
+            targetUtxo.input.outputIndex
+          )
+          .txInInlineDatumPresent()
+          .txInRedeemerValue(redeemer, "JSON")
+          .txInScript(scriptCbor)
+          .requiredSignerHash(senderPkh)
+          .txInCollateral(
+            collateral[0].input.txHash,
+            collateral[0].input.outputIndex,
+            collateral[0].output.amount,
+            collateral[0].output.address
+          )
+
+          // recreate script output
+          .txOut(
+            scriptAddress,
+            targetUtxo.output.amount
+          )
+          .txOutInlineDatumValue(newDatum, "JSON")
+          .changeAddress(changeAddress)
+          .selectUtxosFrom(walletUtxos)
+          .complete();
+
+        const signedTx = await wallet.signTx(
+          unsignedTx,
+          true
+        );
+
+        const txHash = await wallet.submitTx(
+          signedTx
+        );
+
+        alert("Shipment Started: " + txHash);
+
+        setTimeout(async () => {
+          await fetchShipments();
+        }, 15000);
+
+      } catch (error) {
+        console.error("Start shipment error:", error);
+        alert("Start shipment failed");
+      }
+    };
+
     useEffect(() => {
         fetchShipments();
     }, []);
@@ -325,19 +460,24 @@ export default function ShipmentTable() {
                         <button onClick={() => {
                             setSelectedShipment(shipment);
                             setOpenDetailsModal(true);
-                         }} className={getButtonStyle("view")}>
+                         }} className={getButtonStyle("view")}
+                        >
                             View
                         </button>
 
-                        <button className={getButtonStyle("start")}>
+                        <button onClick={() => {
+                            setSelectedShipment(shipment);
+                            setOpenStartModal(true);
+                          }} className={getButtonStyle("start")}
+                          disabled={isStartDisabled(shipment.status)}>
                             Start
                         </button>
 
-                        <button className={getButtonStyle("update")}>
+                        <button className={getButtonStyle("update")}  disabled={isUpdateDisabled(shipment.status)}>
                             Update
                         </button>
 
-                        <button className={getButtonStyle("deliver")}>
+                        <button className={getButtonStyle("deliver")}  disabled={isDeliverDisabled(shipment.status)}>
                             Deliver
                         </button>
                         </div>
@@ -359,13 +499,35 @@ export default function ShipmentTable() {
         onClose={() => setOpenCreateModal(false)}
         onCreate={handleCreateShipment}
         />
-    <ShipmentDetailsModal
+      <ShipmentDetailsModal
         isOpen={openDetailsModal}
         shipment={selectedShipment}
         onClose={() => {
             setOpenDetailsModal(false);
             setSelectedShipment(null);
         }}
+        />
+
+        <ConfirmationModal
+          isOpen={openStartModal}
+          title="Start Shipment"
+          message={`Are you sure you want to start shipment "${
+            selectedShipment?.product ?? "this shipment"
+          }"?`}
+          confirmText="Start Shipment"
+          cancelText="Cancel"
+          onClose={() => {
+            setOpenStartModal(false);
+            setSelectedShipment(null);
+          }}
+          onConfirm={async () => {
+            if (selectedShipment) {
+              await handleStartShipment(selectedShipment);
+            }
+
+            setOpenStartModal(false);
+            setSelectedShipment(null);
+          }}
         />
     </section>
   );
