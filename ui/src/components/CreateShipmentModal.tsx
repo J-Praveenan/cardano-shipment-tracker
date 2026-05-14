@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import toast from "react-hot-toast";
 
 type CreateShipmentModalProps = {
   isOpen: boolean;
@@ -38,7 +39,7 @@ export default function CreateShipmentModal({
 
   const handleSubmit = () => {
     if (!form.name || !form.price || !form.receiver || !form.location) {
-      alert("Please fill all fields");
+      toast.error("Please fill all fields");
       return;
     }
 
