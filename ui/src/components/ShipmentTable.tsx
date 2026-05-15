@@ -507,12 +507,12 @@ export default function ShipmentTable() {
         const price = decoded.fields[3];
         const location = decoded.fields[5];
 
-        const senderPkh = sender.fields[0].bytes;
+       const receiverPkh = receiver.fields[0].bytes;
 
         const currentWalletPkh = resolvePaymentKeyHash(address);
 
-        if (currentWalletPkh !== senderPkh) {
-          toast.error("Only sender can deliver shipment");
+        if (currentWalletPkh !== receiverPkh) {
+          toast.error("Only receiver can make shipment deliver");
           return;
         }
 
@@ -550,7 +550,7 @@ export default function ShipmentTable() {
           .txInInlineDatumPresent()
           .txInRedeemerValue(redeemer, "JSON")
           .txInScript(scriptCbor)
-          .requiredSignerHash(senderPkh)
+          .requiredSignerHash(receiverPkh)
           .txInCollateral(
             collateral[0].input.txHash,
             collateral[0].input.outputIndex,

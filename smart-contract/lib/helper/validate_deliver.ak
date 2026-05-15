@@ -4,7 +4,7 @@ use helper/is_signed_by.{is_signed_by}
 use types/shipment_datum.{Delivered, InTransit, ShipmentDatum}
 
 pub fn validate_deliver(self: Transaction, datum: ShipmentDatum) -> Bool {
-  let valid_sign = is_signed_by(self, datum.sender)
+  let valid_sign = is_signed_by(self, datum.receiver)
 
   expect Some(output) = list.head(self.outputs)
   expect InlineDatum(raw_datum) = output.datum
